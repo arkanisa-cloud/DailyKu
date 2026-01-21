@@ -18,4 +18,3 @@ samples, guidance on mobile development, and a full API reference.
 =======
 # DailyKu
 ToDoList application using flutter with SQLite database
-82267c5a6042d14d925e9435ea3358f6fc5beecb
