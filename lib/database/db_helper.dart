@@ -10,7 +10,6 @@ class DBHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-
     _database = await _initDB('todos.db');
     return _database!;
   }
@@ -20,43 +19,42 @@ class DBHelper {
     final path = join(dbPath, fileName);
 
     return await openDatabase(
-      path, 
-      version: 3, 
+      path,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
   }
 
-  // Handle migration for existing users
-  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute("ALTER TABLE todos ADD COLUMN category TEXT");
-    }
-    if (oldVersion < 3) {
-      await db.execute("ALTER TABLE todos ADD COLUMN lastDoneDate TEXT");
-    }
-  }
-
   Future _createDB(Database db, int version) async {
     await db.execute('''
-  CREATE TABLE todos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    isDone INTEGER NOT NULL,
-    date TEXT,
-    time TEXT NOT NULL,
-    isRepeat INTEGER NOT NULL,
-    dayOfWeek INTEGER,
-    category TEXT,
-    lastDoneDate TEXT
-  )
-  ''');
+    CREATE TABLE todos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      isDone INTEGER NOT NULL,
+      date TEXT,
+      time TEXT NOT NULL,
+
+      repeatType TEXT NOT NULL,
+      repeatValue INTEGER,
+
+      category TEXT,
+      lastDoneDate TEXT
+    )
+    ''');
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 5) {
+      // Tambah kolom baru jika belum ada
+      await db.execute("ALTER TABLE todos ADD COLUMN repeatType TEXT DEFAULT 'none'");
+      await db.execute("ALTER TABLE todos ADD COLUMN repeatValue INTEGER");
+    }
   }
 
   Future<List<Todo>> getTodos() async {
     final db = await instance.database;
     final result = await db.query('todos');
-
     return result.map((json) => Todo.fromMap(json)).toList();
   }
 
@@ -66,12 +64,12 @@ class DBHelper {
   }
 
   Future<void> deleteTodo(int id) async {
-    final db = await database;
+    final db = await instance.database;
     await db.delete('todos', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> updateTodoStatus(int id, bool isDone) async {
-    final db = await database;
+    final db = await instance.database;
     await db.update(
       'todos',
       {'isDone': isDone ? 1 : 0},
@@ -81,12 +79,17 @@ class DBHelper {
   }
 
   Future<int> updateTodo(Todo todo) async {
-    final db = await database;
+    final db = await instance.database;
     return await db.update(
       'todos',
       todo.toMap(),
       where: 'id = ?',
       whereArgs: [todo.id],
     );
+  }
+
+  Future<void> clearAll() async {
+    final db = await instance.database;
+    await db.delete('todos');
   }
 }
