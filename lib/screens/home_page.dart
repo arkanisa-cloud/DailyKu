@@ -54,7 +54,8 @@ class _HomePageState extends State<HomePage> {
     loadTodos();
   }
 
-  void loadTodos() async {
+  /// Memuat semua data tugas dari database
+  Future<void> loadTodos() async {
     final data = await DBHelper.instance.getTodos();
     setState(() {
       todos = data;
@@ -69,144 +70,131 @@ class _HomePageState extends State<HomePage> {
 
   void showAddTodoSheet() {
     final titleController = TextEditingController();
-    // Default values
-    DateTime? tempDate;
-    TimeOfDay? tempTime;
-    bool tempRepeat = false;
-    String selectedCategory = "No Category"; // Default
+    DateTime? taskDate;
+    TimeOfDay? taskTime;
+    bool isDailyRepeat = false;
+    String selectedCategory = "Umum";
 
-    final categories = ["No Category", "Kerja", "Personal", "Liburan"];
+    final categories = ["Umum", "Kerja", "Personal", "Liburan"];
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        // Gunakan StatefulBuilder jika ingin mengubah state icon (misal warna berubah jika date terpilih)
         return StatefulBuilder(
-          builder: (context, setStateSheet) {
-            return Padding(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-                left: 20,
-                right: 20,
-                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 24,
+                right: 24,
+                top: 24,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    "Tambah Tugas Baru",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: titleController,
                     autofocus: true,
-                    onChanged: (_) =>
-                        setStateSheet(() {}), // biar icon ikut update
-                    style: const TextStyle(fontSize: 16),
-                    decoration: const InputDecoration(
-                      hintText: 'Masukkan jadwalmu di sini!',
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(color: Colors.grey),
+                    style: const TextStyle(fontSize: 18),
+                    decoration: InputDecoration(
+                      hintText: 'Apa yang ingin kamu kerjakan?',
+                      hintStyle: TextStyle(color: Colors.grey.shade400),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
                     ),
+                    onChanged: (text) => setSheetState(() {}),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
-                      // Category Dropdown
-                      PopupMenuButton<String>(
-                        initialValue: selectedCategory,
-                        onSelected: (String value) {
-                          setStateSheet(() {
-                            selectedCategory = value;
+                      _buildQuickAction(
+                        icon: Icons.category_rounded,
+                        label: selectedCategory,
+                        onTap: () {
+                          _showCategoryPicker(context, categories, (val) {
+                            setSheetState(() => selectedCategory = val);
                           });
                         },
-                        itemBuilder: (BuildContext context) {
-                          return categories.map((String choice) {
-                            return PopupMenuItem<String>(
-                              value: choice,
-                              child: Text(choice),
-                            );
-                          }).toList();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            selectedCategory,
-                            style: const TextStyle(
-                              color: Colors.blue,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                       ),
-                      const SizedBox(width: 8),
-                      // Calendar Button -> Opens Detail Modal
-                      IconButton(
-                        icon: Icon(Icons.calendar_today_outlined,
-                            color:
-                                tempDate != null ? Colors.blue : Colors.grey),
-                        onPressed: () async {
-                          final result = await _showDetailDateModal(
-                            initialDate: tempDate ?? selectedDate,
-                            initialTime: tempTime,
-                            initialRepeat: tempRepeat,
+                      const SizedBox(width: 12),
+                      _buildQuickAction(
+                        icon: Icons.calendar_month_rounded,
+                        label: taskDate == null
+                            ? "Hari ini"
+                            : taskDate!.toIso8601String().split('T')[0],
+                        onTap: () async {
+                          final result = await _openDateTimePicker(
+                            initialDate: taskDate ?? selectedDate,
+                            initialTime: taskTime,
+                            initialRepeat: isDailyRepeat,
                           );
                           if (result != null) {
-                            setStateSheet(() {
-                              tempDate = result['date'];
-                              tempTime = result['time'];
-                              tempRepeat = result['isRepeat'];
+                            setSheetState(() {
+                              taskDate = result['date'];
+                              taskTime = result['time'];
+                              isDailyRepeat = result['isRepeat'];
                             });
                           }
                         },
                       ),
-                      const Spacer(),
-                      Container(
-                        decoration: const BoxDecoration(
-                            color: Colors.grey, shape: BoxShape.circle),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.arrow_upward,
-                            color: titleController.text.trim().isNotEmpty
-                                ? Colors.blue
-                                : Colors.grey,
-                          ),
-                          onPressed: () async {
-                            if (titleController.text.trim().isEmpty) return;
-
-                            await DBHelper.instance.insertTodo(
-                              Todo(
-                                title: titleController.text.trim(),
-                                time: tempTime != null
-                                    ? _formatTimeOfDay(tempTime!)
-                                    : "09:00",
-                                isRepeat: tempRepeat,
-                                date: tempRepeat
-                                    ? null
-                                    : (tempDate
-                                            ?.toIso8601String()
-                                            .split('T')[0] ??
-                                        formattedDate),
-                                dayOfWeek: null,
-                                category: selectedCategory == "No Category"
-                                    ? null
-                                    : selectedCategory,
-                              ),
-                            );
-
-                            Navigator.pop(context);
-                            loadTodos();
-                          },
-                        ),
-                      ),
                     ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: titleController.text.trim().isEmpty
+                          ? null
+                          : () async {
+                              await DBHelper.instance.insertTodo(
+                                Todo(
+                                  title: titleController.text.trim(),
+                                  time: taskTime != null
+                                      ? _formatTime(taskTime!)
+                                      : "09:00",
+                                  isRepeat: isDailyRepeat,
+                                  date: isDailyRepeat
+                                      ? null
+                                      : (taskDate
+                                              ?.toIso8601String()
+                                              .split('T')[0] ??
+                                          formattedDate),
+                                  category: selectedCategory == "Umum"
+                                      ? null
+                                      : selectedCategory,
+                                ),
+                              );
+                              Navigator.pop(context);
+                              loadTodos();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text("Simpan Tugas",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ],
               ),
@@ -217,7 +205,64 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<Map<String, dynamic>?> _showDetailDateModal({
+  Widget _buildQuickAction(
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.blue),
+            const SizedBox(width: 8),
+            Text(label,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryPicker(
+      BuildContext context, List<String> categories, Function(String) onPick) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: categories
+                .map((cat) => ListTile(
+                      title: Text(cat),
+                      onTap: () {
+                        onPick(cat);
+                        Navigator.pop(context);
+                      },
+                    ))
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatTime(TimeOfDay t) {
+    return _formatTimeOfDay(t);
+  }
+
+  /// Dialog untuk mengatur tanggal, waktu, dan pengulangan
+  Future<Map<String, dynamic>?> _openDateTimePicker({
     required DateTime initialDate,
     TimeOfDay? initialTime,
     bool initialRepeat = false,
@@ -391,78 +436,81 @@ class _HomePageState extends State<HomePage> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  void deleteTodo(int id) async {
+  /// Menghapus tugas berdasarkan ID
+  void _deleteTask(int id) async {
     await DBHelper.instance.deleteTodo(id);
     loadTodos();
   }
 
-  void toggleTodo(Todo todo, bool value) async {
-    if (todo.isRepeat && value == true) {
-      // Logic Repeat:
-      // 1. Jangan ubah isDone master jadi true (agar besok masih ada)
-      // 2. Set lastDoneDate = formattedDate
-      // 3. Buat duplikat task yg isDone=true, isRepeat=false, date=formattedDate untuk history hari ini
+  /// Menangani perubahan status selesai/tidak pada tugas
+  void _handleTaskCompletionToggle(Todo todo, bool isCompleted) async {
+    if (todo.isRepeat && isCompleted == true) {
+      // Logika khusus untuk tugas berulang (Daily):
+      // 1. Tugas utama tidak ditandai selesai (agar muncul lagi besok)
+      // 2. Simpan tanggal terakhir diselesaikan
+      // 3. Buat salinan sebagai riwayat yang sudah selesai hari ini
 
-      // Update Master
-      final updatedMaster = Todo(
+      final updatedMasterTask = Todo(
         id: todo.id,
         title: todo.title,
-        isDone: false, // Tetap false
+        isDone: false,
         date: todo.date,
         time: todo.time,
         isRepeat: true,
         dayOfWeek: todo.dayOfWeek,
         category: todo.category,
-        lastDoneDate: formattedDate, // Tandai sdh dikerjakan hari ini
+        lastDoneDate: formattedDate,
       );
-      await DBHelper.instance.updateTodo(updatedMaster);
+      await DBHelper.instance.updateTodo(updatedMasterTask);
 
-      // Buat History
-      final historyTask = Todo(
+      final completionHistory = Todo(
         title: todo.title,
         isDone: true,
         date: formattedDate,
         time: todo.time,
-        isRepeat: false, // Jadi single task di history
+        isRepeat: false,
         category: todo.category,
       );
-      await DBHelper.instance.insertTodo(historyTask);
+      await DBHelper.instance.insertTodo(completionHistory);
     } else {
-      // Logic Biasa
-      await DBHelper.instance.updateTodoStatus(todo.id!, value);
+      // Logika untuk tugas biasa
+      await DBHelper.instance.updateTodoStatus(todo.id!, isCompleted);
     }
     loadTodos();
   }
 
-  void editTodo(Todo todo) {
-    final controller = TextEditingController(text: todo.title);
+  /// Membuka dialog untuk mengedit informasi tugas
+  void _openEditTaskDialog(Todo todo) {
+    final titleController = TextEditingController(text: todo.title);
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Edit Task'),
+          title: const Text('Edit Tugas'),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: TextField(
-            controller: controller,
+            controller: titleController,
             autofocus: true,
             decoration: const InputDecoration(
-              hintText: 'Masukkan task baru',
+              hintText: 'Nama tugas baru',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
-                if (controller.text.trim().isEmpty) return;
+                if (titleController.text.trim().isEmpty) return;
 
                 final updatedTodo = Todo(
-                  id: todo.id, // tetap pake id lama
-                  title: controller.text.trim(), // judul baru
-                  isDone: todo.isDone, // status tidak berubah
-                  time: todo.time, // jam tidak berubah
+                  id: todo.id,
+                  title: titleController.text.trim(),
+                  isDone: todo.isDone,
+                  time: todo.time,
                   date: todo.date,
                   isRepeat: todo.isRepeat,
                   dayOfWeek: todo.dayOfWeek,
@@ -470,10 +518,13 @@ class _HomePageState extends State<HomePage> {
                 );
 
                 await DBHelper.instance.updateTodo(updatedTodo);
-
                 Navigator.pop(context);
                 loadTodos();
               },
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
               child: const Text('Simpan'),
             ),
           ],
@@ -486,47 +537,20 @@ class _HomePageState extends State<HomePage> {
     return !todo.isRepeat && todo.isDone; // Bukan repeat dan sudah done
   }
 
+  /// Mendapatkan daftar tugas yang aktif (belum selesai) untuk hari ini
   List<Todo> get todayTodos {
     final result = todos.where((todo) {
-      if (todo.isDone && todo.isRepeat == false)
-        return false; // Selesai biasa -> masuk Completed
+      if (todo.isDone && todo.isRepeat == false) return false;
       if (todo.isDone && todo.isRepeat && todo.lastDoneDate == formattedDate)
-        return false; // Repeat yg sdh selesai hari ini
+        return false;
 
-      // Filter Category
-      if (!_checkCategory(todo))
-        return false; // kalo kategori nggak sesuai filter jangan tampilkan!
+      if (!_isMatchingCategory(todo)) return false;
 
-      // 1. Repeat (Active & Not done today)
       if (todo.isRepeat) {
-        if (todo.lastDoneDate == formattedDate)
-          return false; // Sudah done hari ini jangan tampilkan
-        return true; // kalo yang belum done, tampilkan
-      }
-
-      // 2. Single Task Today
-      if (todo.date == formattedDate) {
+        if (todo.lastDoneDate == formattedDate) return false;
         return true;
       }
 
-      if (_isCompletedNormalTodo(todo))
-        return false; // todo biasa yang done jangan tampilkan
-
-      return false;
-    }).toList();
-    result.sort((a, b) => a.time.compareTo(b.time));
-    return result;
-  }
-
-  List<Todo> get completedTodayTodos {
-    final result = todos.where((todo) {
-      if (!todo.isDone) return false;
-      if (!_checkCategory(todo)) return false;
-
-      // Check if done today
-      // Logic: date == today OR lastDoneDate == today (for repeats history if stored that way)
-      // With new logic: we create a COPY with isRepeat=false, isDone=true, date=today.
-      // So just check date == formattedDate
       if (todo.date == formattedDate) return true;
 
       return false;
@@ -535,7 +559,20 @@ class _HomePageState extends State<HomePage> {
     return result;
   }
 
-  bool _checkCategory(Todo todo) {
+  /// Mendapatkan daftar tugas yang sudah selesai hari ini
+  List<Todo> get _completedTasksToday {
+    final result = todos.where((todo) {
+      if (!todo.isDone) return false;
+      if (!_isMatchingCategory(todo)) return false;
+      if (todo.date == formattedDate) return true;
+      return false;
+    }).toList();
+    result.sort((a, b) => a.time.compareTo(b.time));
+    return result;
+  }
+
+  /// Mengecek apakah tugas sesuai dengan filter kategori yang dipilih
+  bool _isMatchingCategory(Todo todo) {
     if (_currentFilter == TodoFilter.all) return true;
 
     String requiredCategory = "";
@@ -557,105 +594,195 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColor = Theme.of(context).primaryColor;
+
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Dailyku'),
-        centerTitle: true,
+        title: const Text(
+          'Dailyku',
+          style: TextStyle(
+              fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: -0.5),
+        ),
+        centerTitle: false,
+        backgroundColor: Colors.white,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          // Filter Kategori
+          Container(
+            height: 50,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
-                _buildFilterButton('Semua', TodoFilter.all),
-                _buildFilterButton('Kerja', TodoFilter.kerja),
-                _buildFilterButton('Personal', TodoFilter.personal),
-                _buildFilterButton('Liburan', TodoFilter.liburan),
+                _buildCategoryFilterChip('📅 Semua', TodoFilter.all),
+                const SizedBox(width: 8),
+                _buildCategoryFilterChip('🏢 Kerja', TodoFilter.kerja),
+                const SizedBox(width: 8),
+                _buildCategoryFilterChip('🏠 Personal', TodoFilter.personal),
+                const SizedBox(width: 8),
+                _buildCategoryFilterChip('🏖️ Liburan', TodoFilter.liburan),
               ],
             ),
           ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 80),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 100),
               child: Column(
                 children: [
-                  _buildSection("Today", todayTodos),
-                  _buildSection("Completed Today", completedTodayTodos,
-                      isExpanded: false),
+                  if (todayTodos.isEmpty && _completedTasksToday.isEmpty)
+                    _buildEmptyState()
+                  else ...[
+                    _buildTaskSection("Tugas Aktif", todayTodos),
+                    _buildTaskSection("Selesai", _completedTasksToday,
+                        isInitiallyExpanded: false),
+                  ],
                 ],
               ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.large(
         onPressed: showAddTodoSheet,
-        child: const Icon(Icons.add),
+        backgroundColor: themeColor,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: const Icon(Icons.add_rounded, size: 36),
       ),
     );
   }
 
+  /// Tampilan jika tidak ada tugas
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.event_note, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Belum ada jadwal hari ini',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+    return Padding(
+      padding: const EdgeInsets.only(top: 100),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.wb_sunny_rounded,
+                  size: 80, color: Colors.blue.shade300),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Hari yang cerah!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Belum ada tugas untuk saat ini.',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Widget item tunggal untuk daftar tugas
+  Widget _buildTodoItem(Todo todo) {
+    final themeColor = Theme.of(context).primaryColor;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTodoTile(Todo todo) {
-    return GestureDetector(
-      onLongPress: () => _showTodoOptions(todo),
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: ListTile(
-            leading: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  todo.time,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _handleTaskCompletionToggle(todo, !todo.isDone),
+            onLongPress: () => _showTaskOptionsSheet(todo),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Checkbox Kustom
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: todo.isDone ? Colors.green : Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color:
+                            todo.isDone ? Colors.green : Colors.grey.shade300,
+                        width: 2,
+                      ),
+                    ),
+                    child: todo.isDone
+                        ? const Icon(Icons.check, size: 18, color: Colors.white)
+                        : null,
                   ),
-                ),
-                const SizedBox(height: 4),
-                if (todo.isRepeat)
-                  const Icon(Icons.repeat, size: 14, color: Colors.blue),
-              ],
-            ),
-            title: Text(
-              todo.title,
-              style: TextStyle(
-                fontSize: 16,
-                decoration: todo.isDone
-                    ? TextDecoration.lineThrough
-                    : TextDecoration.none,
-                color: todo.isDone ? Colors.grey : Colors.black87,
-                fontWeight: todo.isDone ? FontWeight.normal : FontWeight.w600,
+                  const SizedBox(width: 16),
+
+                  // Detail Tugas
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          todo.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: todo.isDone ? Colors.grey : Colors.black87,
+                            decoration:
+                                todo.isDone ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.access_time_rounded,
+                                size: 14, color: Colors.grey.shade400),
+                            const SizedBox(width: 4),
+                            Text(
+                              todo.time,
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade500),
+                            ),
+                            if (todo.category != null) ...[
+                              const SizedBox(width: 12),
+                              _buildTinyCategoryTag(todo.category!),
+                            ],
+                            if (todo.isRepeat) ...[
+                              const SizedBox(width: 8),
+                              Icon(Icons.repeat_rounded,
+                                  size: 14, color: themeColor.withOpacity(0.5)),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Indikator Menu
+                  Icon(Icons.more_horiz_rounded, color: Colors.grey.shade300),
+                ],
               ),
-            ),
-            trailing: Checkbox(
-              value: todo.isDone,
-              onChanged: (value) {
-                toggleTodo(todo, value!);
-              },
             ),
           ),
         ),
@@ -663,31 +790,69 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showTodoOptions(Todo todo) {
+  Widget _buildTinyCategoryTag(String category) {
+    Color tagColor = Colors.blue;
+    if (category == "Kerja") tagColor = Colors.orange;
+    if (category == "Personal") tagColor = Colors.green;
+    if (category == "Liburan") tagColor = Colors.purple;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: tagColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        category,
+        style: TextStyle(
+            fontSize: 10, fontWeight: FontWeight.bold, color: tagColor),
+      ),
+    );
+  }
+
+  /// Menu opsi untuk tugas (Edit/Hapus)
+  void _showTaskOptionsSheet(Todo todo) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.edit, color: Colors.blue),
-              title: const Text('Edit Jadwal'),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.edit_rounded, color: Colors.blue),
+              ),
+              title: const Text('Edit Tugas',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(context);
-                editTodo(todo);
+                _openEditTaskDialog(todo);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Hapus Jadwal'),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.delete_rounded, color: Colors.red),
+              ),
+              title: const Text('Hapus Tugas',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
-                deleteTodo(todo.id!);
+                _deleteTask(todo.id!);
               },
             ),
           ],
@@ -696,44 +861,48 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFilterButton(String text, TodoFilter filter) {
+  /// Filter chip kustom untuk kategori
+  Widget _buildCategoryFilterChip(String text, TodoFilter filter) {
     final isActive = _currentFilter == filter;
+    final themeColor = Theme.of(context).primaryColor;
 
     return ChoiceChip(
       label: Text(text),
       selected: isActive,
-      onSelected: (bool selected) {
+      onSelected: (selected) {
         if (selected) {
           setState(() {
             _currentFilter = filter;
           });
         }
       },
-      selectedColor: Colors.blue.shade100, // Light blue for selected
-      backgroundColor: Colors.transparent,
-      shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade200)),
+      selectedColor: themeColor.withOpacity(0.1),
+      backgroundColor: Colors.white,
+      side: BorderSide(
+          color: isActive ? themeColor : Colors.grey.shade200, width: 1.5),
       labelStyle: TextStyle(
-        color: isActive ? Colors.blue.shade900 : Colors.grey,
+        color: isActive ? themeColor : Colors.grey.shade600,
         fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      showCheckmark: false,
     );
   }
 
-  Widget _buildSection(String title, List<Todo> items,
-      {bool isExpanded = true}) {
-    if (items.isEmpty && title != "Completed Today")
-      return const SizedBox.shrink();
-    if (items.isEmpty && title == "Completed Today") {
-      return const SizedBox.shrink(); // Hide if empty
-    }
+  /// Bagian daftar tugas dengan judul yang bisa di-expand
+  Widget _buildTaskSection(String title, List<Todo> items,
+      {bool isInitiallyExpanded = true}) {
+    if (items.isEmpty) return const SizedBox.shrink();
 
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        initiallyExpanded: isExpanded,
+        initiallyExpanded: isInitiallyExpanded,
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: -0.5),
         ),
         children: items.map((todo) {
           return Dismissible(
@@ -741,22 +910,17 @@ class _HomePageState extends State<HomePage> {
             direction: DismissDirection.endToStart,
             background: Container(
               alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.red.shade400,
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.delete, color: Colors.white),
+              child:
+                  const Icon(Icons.delete_outline_rounded, color: Colors.white),
             ),
-            confirmDismiss: (direction) async {
-              // Confirmation logic if needed
-              return true;
-            },
-            onDismissed: (_) {
-              deleteTodo(todo.id!);
-            },
-            child: _buildTodoTile(todo),
+            onDismissed: (_) => _deleteTask(todo.id!),
+            child: _buildTodoItem(todo),
           );
         }).toList(),
       ),
