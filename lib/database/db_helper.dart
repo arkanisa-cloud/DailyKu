@@ -20,7 +20,7 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -39,16 +39,22 @@ class DBHelper {
       repeatValue INTEGER,
 
       category TEXT,
-      lastDoneDate TEXT
+      lastDoneDate TEXT,
+      isReminder INTEGER NOT NULL DEFAULT 0,
+      reminderTime TEXT
     )
     ''');
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 5) {
-      // Tambah kolom baru jika belum ada
-      await db.execute("ALTER TABLE todos ADD COLUMN repeatType TEXT DEFAULT 'none'");
+      await db.execute(
+          "ALTER TABLE todos ADD COLUMN repeatType TEXT DEFAULT 'none'");
       await db.execute("ALTER TABLE todos ADD COLUMN repeatValue INTEGER");
+    }
+    if (oldVersion < 6) {
+      await db.execute("ALTER TABLE todos ADD COLUMN isReminder INTEGER NOT NULL DEFAULT 0");
+      await db.execute("ALTER TABLE todos ADD COLUMN reminderTime TEXT");
     }
   }
 

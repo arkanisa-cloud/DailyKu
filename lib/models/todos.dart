@@ -6,11 +6,14 @@ class Todo {
   String? date; // yyyy-MM-dd (sekali)
   String time; // HH:mm
 
-  String repeatType; // none, weekly, monthly, yearly
+  String repeatType; // none, daily, weekly, monthly, yearly
   int? repeatValue;
 
   String? category;
   String? lastDoneDate; // yyyy-MM-dd
+
+  bool isReminder;
+  String? reminderTime; // HH:mm
 
   Todo({
     this.id,
@@ -22,6 +25,8 @@ class Todo {
     this.repeatValue,
     this.category,
     this.lastDoneDate,
+    this.isReminder = false,
+    this.reminderTime,
   });
 
   Map<String, dynamic> toMap() {
@@ -35,6 +40,8 @@ class Todo {
       'repeatValue': repeatValue,
       'category': category,
       'lastDoneDate': lastDoneDate,
+      'isReminder': isReminder ? 1 : 0,
+      'reminderTime': reminderTime,
     };
   }
 
@@ -49,6 +56,8 @@ class Todo {
       repeatValue: map['repeatValue'],
       category: map['category'],
       lastDoneDate: map['lastDoneDate'],
+      isReminder: map['isReminder'] == 1,
+      reminderTime: map['reminderTime'],
     );
   }
 }

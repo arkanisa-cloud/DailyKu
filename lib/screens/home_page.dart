@@ -35,8 +35,9 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  DateTime get selectedDate => today; 
-  String get formattedDate => selectedDate.toIso8601String().split('T')[0];
+  DateTime get selectedDate => today;
+  String get formattedDate =>
+      selectedDate.toIso8601String().split('T')[0]; // yyyy-MM-dd
 
   bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -72,19 +73,21 @@ class _HomePageState extends State<HomePage> {
     DateTime last = DateTime.parse(todo.lastDoneDate!);
 
     if (todo.repeatType == 'daily') {
-      return !isSameDay(last, today);
+      return !isSameDay(last, today); // Reset jika bukan hari yang sama
     }
 
     if (todo.repeatType == 'weekly') {
-      return today.difference(last).inDays >= 7;
+      return today.difference(last).inDays >=
+          7; // Minggu baru jika sudah lewat 7 hari
     }
 
     if (todo.repeatType == 'monthly') {
-      return last.month != today.month || last.year != today.year;
+      return last.month != today.month ||
+          last.year != today.year; // Bulan baru jika bulan atau tahun berbeda
     }
 
     if (todo.repeatType == 'yearly') {
-      return last.year != today.year;
+      return last.year != today.year; // Tahun baru jika tahun berbeda
     }
 
     return false;
@@ -130,56 +133,58 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCategoryFilterChip(String text, TodoFilter filter) {
     final isActive = _currentFilter == filter;
-    final themeColor = Theme.of(context).primaryColor;
+    final primaryColor = Theme.of(context).primaryColor;
 
-    return ChoiceChip(
-      label: Text(text),
-      selected: isActive,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _currentFilter = filter;
-          });
-        }
-      },
-      selectedColor: themeColor.withOpacity(0.1),
-      backgroundColor: Colors.white,
-      side: BorderSide(
-          color: isActive ? themeColor : Colors.grey.shade200, width: 1.5),
-      labelStyle: TextStyle(
-        color: isActive ? themeColor : Colors.grey.shade600,
-        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(text),
+        selected: isActive,
+        onSelected: (selected) {
+          if (selected) setState(() => _currentFilter = filter);
+        },
+        selectedColor: primaryColor.withOpacity(0.12),
+        backgroundColor: Colors.white,
+        side: BorderSide(
+          color: isActive ? primaryColor : Colors.grey.shade200,
+          width: 1.5,
+        ),
+        labelStyle: TextStyle(
+          color: isActive ? primaryColor : Colors.grey.shade700,
+          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+          fontSize: 13,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        showCheckmark: false,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      showCheckmark: false,
     );
   }
 
   Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.only(top: 100),
+      padding: const EdgeInsets.only(top: 80),
       child: Center(
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.wb_sunny_rounded,
-                  size: 80, color: Colors.blue.shade300),
+                  size: 64, color: Theme.of(context).primaryColor),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Hari yang cerah!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22),
             ),
             const SizedBox(height: 8),
             Text(
               'Belum ada tugas untuk saat ini.',
-              style: TextStyle(color: Colors.grey.shade500),
+              style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 15),
             ),
           ],
         ),
@@ -188,21 +193,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildTinyCategoryTag(String category) {
-    Color tagColor = Colors.blue;
+    Color tagColor = Theme.of(context).primaryColor;
     if (category == "Kerja") tagColor = Colors.orange;
     if (category == "Personal") tagColor = Colors.green;
     if (category == "Liburan") tagColor = Colors.purple;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: tagColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
+        color: tagColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: tagColor.withOpacity(0.1), width: 1),
       ),
       child: Text(
         category,
         style: TextStyle(
-            fontSize: 10, fontWeight: FontWeight.bold, color: tagColor),
+            fontSize: 11, fontWeight: FontWeight.bold, color: tagColor),
       ),
     );
   }
@@ -215,46 +221,52 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Edit Tugas'),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           content: TextField(
             controller: titleController,
             autofocus: true,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Nama tugas baru',
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              child: Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
             ),
             ElevatedButton(
               onPressed: () async {
                 if (titleController.text.trim().isEmpty) return;
-
-                // Create a copy with updated title, preserving other fields
-                // including the new repeat types logic
                 final updatedTodo = Todo(
                   id: todo.id,
                   title: titleController.text.trim(),
                   isDone: todo.isDone,
                   time: todo.time,
                   date: todo.date,
-                  // Preserve new repeat logic fields
                   repeatType: todo.repeatType,
                   repeatValue: todo.repeatValue,
                   category: todo.category,
                   lastDoneDate: todo.lastDoneDate,
                 );
-
                 await DBHelper.instance.updateTodo(updatedTodo);
                 Navigator.pop(context);
                 loadTodos();
               },
               style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Simpan'),
             ),
@@ -271,38 +283,39 @@ class _HomePageState extends State<HomePage> {
       builder: (_) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 24),
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.edit_rounded, color: Colors.blue),
+                    color: Theme.of(context).primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14)),
+                child: Icon(Icons.edit_rounded, color: Theme.of(context).primaryColor),
               ),
               title: const Text('Edit Tugas',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               onTap: () {
                 Navigator.pop(context);
                 _openEditTaskDialog(todo);
               },
             ),
+            const SizedBox(height: 8),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(10)),
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14)),
                 child: const Icon(Icons.delete_rounded, color: Colors.red),
               ),
               title: const Text('Hapus Tugas',
                   style: TextStyle(
-                      fontWeight: FontWeight.w600, color: Colors.red)),
+                      fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16)),
               onTap: () {
                 Navigator.pop(context);
                 _deleteTask(todo.id!);
@@ -315,98 +328,126 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildTodoItem(Todo todo) {
-    final themeColor = Theme.of(context).primaryColor;
+    final primaryColor = Theme.of(context).primaryColor;
     bool isRepeat = todo.repeatType != 'none';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _handleTaskCompletionToggle(todo),
-            onLongPress: () => _showTaskOptionsSheet(todo),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Checkbox Kustom
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: todo.isDone ? Colors.green : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color:
-                            todo.isDone ? Colors.green : Colors.grey.shade300,
-                        width: 2,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => _handleTaskCompletionToggle(todo),
+          onLongPress: () => _showTaskOptionsSheet(todo),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: todo.isDone ? const Color(0xFF34C759) : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: todo.isDone ? const Color(0xFF34C759) : Colors.grey.shade300,
+                      width: 2,
+                    ),
+                  ),
+                  child: todo.isDone
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        todo.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: todo.isDone ? Colors.grey.shade400 : Colors.black87,
+                          decoration: todo.isDone ? TextDecoration.lineThrough : null,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_rounded,
+                              size: 14, color: Colors.blueGrey.shade200),
+                          const SizedBox(width: 4),
+                          Text(
+                            todo.time,
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.blueGrey.shade300),
+                          ),
+                          if (todo.category != null) ...[
+                            const SizedBox(width: 12),
+                            _buildTinyCategoryTag(todo.category!),
+                          ],
+                          if (isRepeat) ...[
+                            const SizedBox(width: 10),
+                            Icon(Icons.repeat_rounded,
+                                size: 14, color: primaryColor.withOpacity(0.4)),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _openEditTaskDialog(todo);
+                    } else if (value == 'delete') {
+                      _deleteTask(todo.id!);
+                    }
+                  },
+                  icon: Icon(Icons.more_horiz_rounded,
+                      color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_rounded,
+                              size: 20, color: Color(0xFF5C7CFA)),
+                          SizedBox(width: 12),
+                          Text('Edit'),
+                        ],
                       ),
                     ),
-                    child: todo.isDone
-                        ? const Icon(Icons.check, size: 18, color: Colors.white)
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-
-                  // Detail Tugas
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          todo.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: todo.isDone ? Colors.grey : Colors.black87,
-                            decoration:
-                                todo.isDone ? TextDecoration.lineThrough : null,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.access_time_rounded,
-                                size: 14, color: Colors.grey.shade400),
-                            const SizedBox(width: 4),
-                            Text(
-                              todo.time,
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey.shade500),
-                            ),
-                            if (todo.category != null) ...[
-                              const SizedBox(width: 12),
-                              _buildTinyCategoryTag(todo.category!),
-                            ],
-                            if (isRepeat) ...[
-                              const SizedBox(width: 8),
-                              Icon(Icons.repeat_rounded,
-                                  size: 14, color: themeColor.withOpacity(0.5)),
-                            ],
-                          ],
-                        ),
-                      ],
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_rounded,
+                              size: 20, color: Colors.red),
+                          SizedBox(width: 12),
+                          Text('Hapus', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
                     ),
-                  ),
-
-                  // Indikator Menu
-                  Icon(Icons.more_horiz_rounded, color: Colors.grey.shade300),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -422,92 +463,58 @@ class _HomePageState extends State<HomePage> {
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         initiallyExpanded: isInitiallyExpanded,
+        shape: const Border(),
+        collapsedShape: const Border(),
         title: Text(
           title,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: -0.5),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            letterSpacing: -0.5,
+            color: Colors.blueGrey.shade900,
+          ),
         ),
-        children: items.map((todo) {
-          return Dismissible(
-            key: ValueKey(todo.id),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.red.shade400,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child:
-                  const Icon(Icons.delete_outline_rounded, color: Colors.white),
-            ),
-            onDismissed: (_) => _deleteTask(todo.id!),
-            child: _buildTodoItem(todo),
-          );
-        }).toList(),
+        iconColor: Colors.blueGrey.shade300,
+        children: items.map((todo) => _buildTodoItem(todo)).toList(),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = Theme.of(context).primaryColor;
-
     // Filter relevant todos
     List<Todo> relevantTodos = todos.where((t) {
-      // Logic from home_page.dart: reset if needed
-      if (shouldReset(t)) {
-        t.isDone = false;
-      }
+      if (shouldReset(t)) t.isDone = false;
       return shouldShowToday(t);
     }).toList();
 
-    // Apply category filter
     if (_currentFilter != TodoFilter.all) {
-      relevantTodos =
-          relevantTodos.where((t) => _isMatchingCategory(t)).toList();
+      relevantTodos = relevantTodos.where((t) => _isMatchingCategory(t)).toList();
     }
 
-    // Split active and done
-    List<Todo> activeTodos =
-        relevantTodos.where((t) => !t.isDone).toList();
-    List<Todo> doneTodos =
-        relevantTodos.where((t) => t.isDone).toList();
-        
-    // Sort logic from lama (by time)
+    List<Todo> activeTodos = relevantTodos.where((t) => !t.isDone).toList();
+    List<Todo> doneTodos = relevantTodos.where((t) => t.isDone).toList();
+
     activeTodos.sort((a, b) => a.time.compareTo(b.time));
     doneTodos.sort((a, b) => a.time.compareTo(b.time));
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text(
-          'Dailyku',
-          style: TextStyle(
-              fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: -0.5),
-        ),
+        title: const Text('Dailyku'),
         centerTitle: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
       ),
       body: Column(
         children: [
-          // Filter Kategori
           Container(
-            height: 50,
-            margin: const EdgeInsets.only(bottom: 8),
+            height: 56,
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 _buildCategoryFilterChip('📅 Semua', TodoFilter.all),
-                const SizedBox(width: 8),
                 _buildCategoryFilterChip('🏢 Kerja', TodoFilter.kerja),
-                const SizedBox(width: 8),
                 _buildCategoryFilterChip('🏠 Personal', TodoFilter.personal),
-                const SizedBox(width: 8),
                 _buildCategoryFilterChip('🏖️ Liburan', TodoFilter.liburan),
               ],
             ),
@@ -515,15 +522,15 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 100),
+              padding: const EdgeInsets.only(bottom: 120),
               child: Column(
                 children: [
                   if (activeTodos.isEmpty && doneTodos.isEmpty)
                     _buildEmptyState()
                   else ...[
                     _buildTaskSection("Tugas Aktif", activeTodos),
-                    _buildTaskSection("Selesai", doneTodos,
-                        isInitiallyExpanded: false),
+                    const SizedBox(height: 16),
+                    _buildTaskSection("Selesai", doneTodos, isInitiallyExpanded: false),
                   ],
                 ],
               ),
@@ -536,12 +543,10 @@ class _HomePageState extends State<HomePage> {
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
+            backgroundColor: Colors.transparent,
             builder: (_) => AddTodoSheet(onSave: loadTodos),
           );
         },
-        backgroundColor: themeColor,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Icon(Icons.add_rounded, size: 36),
       ),
     );
