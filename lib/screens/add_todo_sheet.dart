@@ -378,7 +378,7 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                 maxLines: null,
                 style: const TextStyle(fontSize: 18),
                 decoration: const InputDecoration(
-                  hintText: "Input new task here",
+                  hintText: "Masukkan tugasmu disini!",
                   hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 12),
