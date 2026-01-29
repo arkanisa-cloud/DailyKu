@@ -170,20 +170,28 @@ class _HomePageState extends State<HomePage> {
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withOpacity(0.4),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.wb_sunny_rounded,
-                  size: 64, color: Theme.of(context).primaryColor),
+              child: Image.asset(
+                'assets/img/empty.png',
+                width: 80,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
-              'Hari yang cerah!',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22),
+              'Semua masih kosong.',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontSize: 22),
             ),
             const SizedBox(height: 8),
             Text(
-              'Belum ada tugas untuk saat ini.',
+              'Yuk, tambahkan tugas pertamamu!',
               style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 15),
             ),
           ],
@@ -241,7 +249,8 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
+              child:
+                  Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -295,7 +304,8 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(14)),
-                child: Icon(Icons.edit_rounded, color: Theme.of(context).primaryColor),
+                child: Icon(Icons.edit_rounded,
+                    color: Theme.of(context).primaryColor),
               ),
               title: const Text('Edit Tugas',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -315,7 +325,9 @@ class _HomePageState extends State<HomePage> {
               ),
               title: const Text('Hapus Tugas',
                   style: TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16)),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                      fontSize: 16)),
               onTap: () {
                 Navigator.pop(context);
                 _deleteTask(todo.id!);
@@ -359,10 +371,14 @@ class _HomePageState extends State<HomePage> {
                   width: 26,
                   height: 26,
                   decoration: BoxDecoration(
-                    color: todo.isDone ? const Color(0xFF34C759) : Colors.transparent,
+                    color: todo.isDone
+                        ? const Color(0xFF34C759)
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: todo.isDone ? const Color(0xFF34C759) : Colors.grey.shade300,
+                      color: todo.isDone
+                          ? const Color(0xFF34C759)
+                          : Colors.grey.shade300,
                       width: 2,
                     ),
                   ),
@@ -380,8 +396,11 @@ class _HomePageState extends State<HomePage> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: todo.isDone ? Colors.grey.shade400 : Colors.black87,
-                          decoration: todo.isDone ? TextDecoration.lineThrough : null,
+                          color: todo.isDone
+                              ? Colors.grey.shade400
+                              : Colors.black87,
+                          decoration:
+                              todo.isDone ? TextDecoration.lineThrough : null,
                           letterSpacing: -0.3,
                         ),
                       ),
@@ -489,7 +508,8 @@ class _HomePageState extends State<HomePage> {
     }).toList();
 
     if (_currentFilter != TodoFilter.all) {
-      relevantTodos = relevantTodos.where((t) => _isMatchingCategory(t)).toList();
+      relevantTodos =
+          relevantTodos.where((t) => _isMatchingCategory(t)).toList();
     }
 
     List<Todo> activeTodos = relevantTodos.where((t) => !t.isDone).toList();
@@ -499,44 +519,101 @@ class _HomePageState extends State<HomePage> {
     doneTodos.sort((a, b) => a.time.compareTo(b.time));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dailyku'),
-        centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(72),
+        child: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1.5,
+          shadowColor: Colors.black.withOpacity(0.15),
+          toolbarHeight: 72,
+          shape: Border(
+            bottom: BorderSide(
+              color: Colors.blueGrey.shade300,
+              width: 1,
+            ),
+          ),
+          flexibleSpace: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildCategoryFilterChip('📅 Semua', TodoFilter.all),
-                _buildCategoryFilterChip('🏢 Kerja', TodoFilter.kerja),
-                _buildCategoryFilterChip('🏠 Personal', TodoFilter.personal),
-                _buildCategoryFilterChip('🏖️ Liburan', TodoFilter.liburan),
+                Image.asset(
+                  'assets/img/logo.png',
+                  width: 44, // lebih proporsional
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Dailyku',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Kelola harimu dengan lebih produktif!',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blueGrey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 120),
-              child: Column(
-                children: [
-                  if (activeTodos.isEmpty && doneTodos.isEmpty)
-                    _buildEmptyState()
-                  else ...[
-                    _buildTaskSection("Tugas Aktif", activeTodos),
-                    const SizedBox(height: 16),
-                    _buildTaskSection("Selesai", doneTodos, isInitiallyExpanded: false),
+        ),
+      ),
+      body: Container(
+        color: Colors.grey.shade50,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    _buildCategoryFilterChip('Semua', TodoFilter.all),
+                    _buildCategoryFilterChip('Kerja', TodoFilter.kerja),
+                    _buildCategoryFilterChip('Personal', TodoFilter.personal),
+                    _buildCategoryFilterChip('Liburan', TodoFilter.liburan),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                child: Column(
+                  children: [
+                    if (activeTodos.isEmpty && doneTodos.isEmpty)
+                      _buildEmptyState()
+                    else ...[
+                      _buildTaskSection("Tugas Aktif", activeTodos),
+                      const SizedBox(height: 24),
+                      _buildTaskSection("Selesai", doneTodos,
+                          isInitiallyExpanded: false),
+                      const SizedBox(height: 32),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.large(
         onPressed: () {
@@ -547,6 +624,7 @@ class _HomePageState extends State<HomePage> {
             builder: (_) => AddTodoSheet(onSave: loadTodos),
           );
         },
+        elevation: 4,
         child: const Icon(Icons.add_rounded, size: 36),
       ),
     );
