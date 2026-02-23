@@ -14,6 +14,7 @@ class Todo {
 
   bool isReminder;
   String? reminderTime; // HH:mm
+  int? notificationId; // Added for local notifications
 
   Todo({
     this.id,
@@ -27,6 +28,7 @@ class Todo {
     this.lastDoneDate,
     this.isReminder = false,
     this.reminderTime,
+    this.notificationId,
   });
 
   Map<String, dynamic> toMap() {
@@ -42,6 +44,7 @@ class Todo {
       'lastDoneDate': lastDoneDate,
       'isReminder': isReminder ? 1 : 0,
       'reminderTime': reminderTime,
+      'notificationId': notificationId,
     };
   }
 
@@ -58,6 +61,7 @@ class Todo {
       lastDoneDate: map['lastDoneDate'],
       isReminder: map['isReminder'] == 1,
       reminderTime: map['reminderTime'],
+      notificationId: map['notificationId'],
     );
   }
 }

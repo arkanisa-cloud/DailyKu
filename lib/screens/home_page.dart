@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../database/db_helper.dart';
 import '../models/todos.dart';
 import 'add_todo_sheet.dart';
+import '../widgets/drawer_widget.dart';
+import '../services/notification_service.dart';
 
 enum TodoFilter {
   all,
@@ -18,9 +21,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Todo> todos = [];
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  List<Todo> todos = []; 
   TodoFilter _currentFilter = TodoFilter.all;
-  DateTime today = DateTime.now();
+  DateTime _selectedDate = DateTime.now(); // State tanggal terpilih
 
   @override
   void initState() {
@@ -35,82 +39,96 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  DateTime get selectedDate => today;
-  String get formattedDate =>
-      selectedDate.toIso8601String().split('T')[0]; // yyyy-MM-dd
+  // --- Logic Helper ---
 
+  // Cek apakah tanggal sama (abaikan jam)
   bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  bool shouldShowToday(Todo todo) {
+  // Filter apakah task muncul di _selectedDate
+  bool shouldShowOnSelectedDate(Todo todo) {
     if (todo.repeatType == 'none') {
-      return todo.date ==
-          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+      String targetStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      return todo.date == targetStr;
     }
 
     if (todo.repeatType == 'daily') return true;
 
     if (todo.repeatType == 'weekly') {
-      return todo.repeatValue == today.weekday;
+      return todo.repeatValue == _selectedDate.weekday;
     }
 
     if (todo.repeatType == 'monthly') {
-      return todo.repeatValue == today.day;
+      return todo.repeatValue == _selectedDate.day;
     }
 
     if (todo.repeatType == 'yearly') {
-      int mmdd = today.month * 100 + today.day;
+      int mmdd = _selectedDate.month * 100 + _selectedDate.day; // Format MMDD ex: 2 * 100 + 20 = 220 = Feb 20
       return todo.repeatValue == mmdd;
     }
 
     return false;
   }
 
+  // Cek apakah task repeat perlu di-reset statusnya (berdasarkan Updated Real Time, bukan SelectedDate)
   bool shouldReset(Todo todo) {
     if (todo.lastDoneDate == null) return false;
 
     DateTime last = DateTime.parse(todo.lastDoneDate!);
+    DateTime now = DateTime.now(); // Reset selalu pakai waktu sekarang
 
     if (todo.repeatType == 'daily') {
-      return !isSameDay(last, today); // Reset jika bukan hari yang sama
+      return !isSameDay(last, now);
     }
 
     if (todo.repeatType == 'weekly') {
-      return today.difference(last).inDays >=
-          7; // Minggu baru jika sudah lewat 7 hari
+      // selisih hari >= 7
+      return now.difference(last).inDays >= 7;
     }
 
     if (todo.repeatType == 'monthly') {
-      return last.month != today.month ||
-          last.year != today.year; // Bulan baru jika bulan atau tahun berbeda
+      return last.month != now.month || last.year != now.year; // Kalau bulan atau tahun berubah, reset!
     }
 
     if (todo.repeatType == 'yearly') {
-      return last.year != today.year; // Tahun baru jika tahun berbeda
+      return last.year != now.year; // Kalau tahun berubah, reset!
     }
 
     return false;
   }
 
   Future<void> _handleTaskCompletionToggle(Todo todo) async {
+    // Logic toggle
     todo.isDone = !todo.isDone;
+
+    // Jika dicentang, simpan tanggal hari ini (Real Time) sebagai lastDoneDate
     if (todo.isDone) {
-      todo.lastDoneDate =
-          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+      todo.lastDoneDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      // Cancel notification if marked as done
+      await NotificationService().cancelNotification(todo.notificationId);
+    } else {
+      // Re-schedule if marked as undone
+      if (todo.isReminder) {
+        await NotificationService().scheduleTodoNotification(todo);
+      }
     }
+
     await DBHelper.instance.updateTodo(todo);
     loadTodos();
   }
 
   void _deleteTask(int id) async {
+    // Get the todo first to find notificationId
+    final todoToDelete = todos.firstWhere((t) => t.id == id);
+    await NotificationService().cancelNotification(todoToDelete.notificationId);
+    
     await DBHelper.instance.deleteTodo(id);
     loadTodos();
   }
 
   bool _isMatchingCategory(Todo todo) {
     if (_currentFilter == TodoFilter.all) return true;
-
     String requiredCategory = "";
     switch (_currentFilter) {
       case TodoFilter.kerja:
@@ -125,11 +143,11 @@ class _HomePageState extends State<HomePage> {
       default:
         break;
     }
-    // Compare ignoring case safely if needed, but assuming exact match for now based on lama
     return todo.category == requiredCategory;
   }
 
-  // --- UI COMPONENTS FROM home_page_lama ---
+
+  // --- UI Components ---
 
   Widget _buildCategoryFilterChip(String text, TodoFilter filter) {
     final isActive = _currentFilter == filter;
@@ -176,14 +194,11 @@ class _HomePageState extends State<HomePage> {
                     .withOpacity(0.4),
                 shape: BoxShape.circle,
               ),
-              child: Image.asset(
-                'assets/img/empty.png',
-                width: 80,
-              ),
+              child: Image.asset('assets/img/empty.png', width: 80),
             ),
             const SizedBox(height: 24),
             Text(
-              'Semua masih kosong.',
+              'Belum ada tugas',
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -191,7 +206,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Yuk, tambahkan tugas pertamamu!',
+              'Ayo masukkan list pertamamu!',
               style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 15),
             ),
           ],
@@ -200,8 +215,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildTinyCategoryTag(String category) {
+  Widget _buildCategoryTag(String category) {
     Color tagColor = Theme.of(context).primaryColor;
+    if (category == "Umum") tagColor = Colors.blue;
     if (category == "Kerja") tagColor = Colors.orange;
     if (category == "Personal") tagColor = Colors.green;
     if (category == "Liburan") tagColor = Colors.purple;
@@ -222,8 +238,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openEditTaskDialog(Todo todo) {
-    final titleController = TextEditingController(text: todo.title);
-
+    final titleController = TextEditingController(text: todo.title); // Prefill dengan judul lama
     showDialog(
       context: context,
       builder: (context) {
@@ -248,7 +263,7 @@ class _HomePageState extends State<HomePage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context), // tutup dialog
               child:
                   Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
             ),
@@ -257,7 +272,7 @@ class _HomePageState extends State<HomePage> {
                 if (titleController.text.trim().isEmpty) return;
                 final updatedTodo = Todo(
                   id: todo.id,
-                  title: titleController.text.trim(),
+                  title: titleController.text.trim(), // Update dengan judul baru dan (trim) hapus spasi berlebih
                   isDone: todo.isDone,
                   time: todo.time,
                   date: todo.date,
@@ -265,8 +280,16 @@ class _HomePageState extends State<HomePage> {
                   repeatValue: todo.repeatValue,
                   category: todo.category,
                   lastDoneDate: todo.lastDoneDate,
+                  isReminder: todo.isReminder,
+                  reminderTime: todo.reminderTime,
+                  notificationId: todo.notificationId,
                 );
-                await DBHelper.instance.updateTodo(updatedTodo);
+
+                if (updatedTodo.isReminder && !updatedTodo.isDone) {
+                  await NotificationService().scheduleTodoNotification(updatedTodo);
+                }
+                
+                await DBHelper.instance.updateTodo(updatedTodo); 
                 Navigator.pop(context);
                 loadTodos();
               },
@@ -358,7 +381,7 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
+        child: InkWell( // animasi klik
           borderRadius: BorderRadius.circular(22),
           onTap: () => _handleTaskCompletionToggle(todo),
           onLongPress: () => _showTaskOptionsSheet(todo),
@@ -417,7 +440,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           if (todo.category != null) ...[
                             const SizedBox(width: 12),
-                            _buildTinyCategoryTag(todo.category!),
+                            _buildCategoryTag(todo.category!),
                           ],
                           if (isRepeat) ...[
                             const SizedBox(width: 10),
@@ -431,11 +454,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 PopupMenuButton<String>(
                   onSelected: (value) {
-                    if (value == 'edit') {
+                    if (value == 'edit')
                       _openEditTaskDialog(todo);
-                    } else if (value == 'delete') {
-                      _deleteTask(todo.id!);
-                    }
+                    else if (value == 'delete') _deleteTask(todo.id!);
                   },
                   icon: Icon(Icons.more_horiz_rounded,
                       color: Colors.grey.shade300),
@@ -474,12 +495,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildTaskSection(String title, List<Todo> items,
-      {bool isInitiallyExpanded = true}) {
+  Widget _buildTaskSection(String title, List<Todo> items, 
+      {bool isInitiallyExpanded = true}) {  
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent), 
       child: ExpansionTile(
         initiallyExpanded: isInitiallyExpanded,
         shape: const Border(),
@@ -501,13 +522,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter relevant todos
     List<Todo> relevantTodos = todos.where((t) {
-      if (shouldReset(t)) t.isDone = false;
-      return shouldShowToday(t);
+      if (shouldReset(t)) { // ketika repeat, reset ke belum selesai
+        t.isDone = false;
+      }
+      return shouldShowOnSelectedDate(t);
     }).toList();
 
     if (_currentFilter != TodoFilter.all) {
+      // Filter kategori
       relevantTodos =
           relevantTodos.where((t) => _isMatchingCategory(t)).toList();
     }
@@ -515,61 +538,67 @@ class _HomePageState extends State<HomePage> {
     List<Todo> activeTodos = relevantTodos.where((t) => !t.isDone).toList();
     List<Todo> doneTodos = relevantTodos.where((t) => t.isDone).toList();
 
-    activeTodos.sort((a, b) => a.time.compareTo(b.time));
+    activeTodos.sort((a, b) => a.time.compareTo(b.time)); // Urutkan berdasarkan waktu (ascending)
     doneTodos.sort((a, b) => a.time.compareTo(b.time));
 
+    // Cek apakah tanggal yg dipilih adalah Hari Ini
+    bool isToday = isSameDay(_selectedDate, DateTime.now());
+
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: DailykuDrawer(
+        selectedDate: _selectedDate,
+        todos: todos,
+        onDateChanged: (val) { //ketika tanggal di drawer berubah, update state tanggal terpilih
+          setState(() {
+            _selectedDate = val;
+          });
+        },
+      ),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(72),
         child: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).primaryColor,
           elevation: 1.5,
           shadowColor: Colors.black.withOpacity(0.15),
           toolbarHeight: 72,
+          leading: IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
           shape: Border(
             bottom: BorderSide(
-              color: Colors.blueGrey.shade300,
+              color: Theme.of(context).primaryColor.withOpacity(0.3),
               width: 1,
             ),
           ),
-          flexibleSpace: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/img/logo.png',
-                  width: 44, // lebih proporsional
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Dailyku',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Dailyku',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Kelola harimu dengan lebih produktif!',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.blueGrey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isToday
+                    ? 'Hari ini, ${DateFormat('d MMM').format(_selectedDate)}'
+                    : DateFormat('EEEE, d MMM yyyy', 'id_ID') // kalo bukan hari ini, tampilkan format lengkap dengan nama hari
+                        .format(_selectedDate),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withOpacity(0.7),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -593,8 +622,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+              child: SingleChildScrollView( 
+                physics: const BouncingScrollPhysics(), 
                 padding:
                     const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 child: Column(
@@ -615,17 +644,23 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.large(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => AddTodoSheet(onSave: loadTodos),
-          );
-        },
-        elevation: 4,
-        child: const Icon(Icons.add_rounded, size: 36),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 24, right: 16),
+        child: FloatingActionButton(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => AddTodoSheet(onSave: loadTodos),
+            );
+          },
+          elevation: 4,
+          backgroundColor: Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+          tooltip: 'Tambah Tugas',
+          child: const Icon(Icons.add_rounded, size: 24),
+        ),
       ),
     );
   }

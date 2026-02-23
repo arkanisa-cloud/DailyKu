@@ -20,7 +20,7 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -41,7 +41,8 @@ class DBHelper {
       category TEXT,
       lastDoneDate TEXT,
       isReminder INTEGER NOT NULL DEFAULT 0,
-      reminderTime TEXT
+      reminderTime TEXT,
+      notificationId INTEGER
     )
     ''');
   }
@@ -55,6 +56,9 @@ class DBHelper {
     if (oldVersion < 6) {
       await db.execute("ALTER TABLE todos ADD COLUMN isReminder INTEGER NOT NULL DEFAULT 0");
       await db.execute("ALTER TABLE todos ADD COLUMN reminderTime TEXT");
+    }
+    if (oldVersion < 7) {
+      await db.execute("ALTER TABLE todos ADD COLUMN notificationId INTEGER");
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/todos.dart';
 import '../database/db_helper.dart';
+import '../services/notification_service.dart';
 
 class AddTodoSheet extends StatefulWidget {
   final VoidCallback onSave;
@@ -53,6 +54,11 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
     final DateTime finalDate = _selectedDate ?? DateTime.now();
     _calculateRepeatValue(finalDate);
 
+    int? notificationId;
+    if (_isReminder) {
+      notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    }
+
     final Todo todo = Todo(
       title: _titleController.text.trim(),
       time: _selectedTime != null ? _formatTime(_selectedTime!) : "09:00",
@@ -63,7 +69,12 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
       isDone: false,
       isReminder: _isReminder,
       reminderTime: _reminderTime != null ? _formatTime(_reminderTime!) : null,
+      notificationId: notificationId,
     );
+
+    if (_isReminder) {
+      await NotificationService().scheduleTodoNotification(todo);
+    }
 
     await DBHelper.instance.insertTodo(todo);
     widget.onSave();
@@ -111,7 +122,6 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final primaryColor = Theme.of(context).primaryColor;
-            final isRepeatEnabled = tempRepeat != 'none';
 
             return Container(
               height: MediaQuery.of(context).size.height * 0.9,
@@ -135,7 +145,7 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                           },
                         ),
                         const Divider(height: 32),
-                        
+
                         // Set Time
                         ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -145,9 +155,11 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                               color: primaryColor.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(Icons.access_time_rounded, color: primaryColor),
+                            child: Icon(Icons.access_time_rounded,
+                                color: primaryColor),
                           ),
-                          title: const Text("Tentukan Waktu", style: TextStyle(fontWeight: FontWeight.bold)),
+                          title: const Text("Tentukan Waktu",
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                           trailing: Switch(
                             value: tempTime != null,
                             activeColor: primaryColor,
@@ -157,7 +169,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                                   context: context,
                                   initialTime: TimeOfDay.now(),
                                 );
-                                if (t != null) setModalState(() => tempTime = t);
+                                if (t != null)
+                                  setModalState(() => tempTime = t);
                               } else {
                                 setModalState(() => tempTime = null);
                               }
@@ -166,7 +179,7 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Upgrade Repeat Section
+                        // Repeat Section
                         _buildRepeatSettingSection(tempRepeat, (newRepeat) {
                           setModalState(() => tempRepeat = newRepeat);
                         }),
@@ -174,7 +187,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                         const SizedBox(height: 16),
 
                         // Reminder Section (Below Repeat)
-                        _buildReminderSettingSection(tempIsReminder, tempReminderTime, (enabled, time) {
+                        _buildReminderSettingSection(
+                            tempIsReminder, tempReminderTime, (enabled, time) {
                           setModalState(() {
                             tempIsReminder = enabled;
                             tempReminderTime = time;
@@ -192,7 +206,10 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: Text("Batal", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                          child: Text("Batal",
+                              style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -212,9 +229,11 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
                           ),
-                          child: const Text("Terapkan", style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: const Text("Terapkan",
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -238,11 +257,11 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
     }
   }
 
-  Widget _buildRepeatSettingSection(String currentRepeat, Function(String) onRepeatChanged) {
+  Widget _buildRepeatSettingSection(
+      String currentRepeat, Function(String) onRepeatChanged) {
     bool isEnabled = currentRepeat != 'none';
     final primaryColor = Theme.of(context).primaryColor;
     final List<Map<String, String>> options = [
-      {'val': 'hourly', 'label': 'Jam'},
       {'val': 'daily', 'label': 'Harian'},
       {'val': 'weekly', 'label': 'Mingguan'},
       {'val': 'monthly', 'label': 'Bulanan'},
@@ -261,7 +280,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
             ),
             child: const Icon(Icons.repeat_rounded, color: Colors.orange),
           ),
-          title: const Text("Pengulangan", style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text("Pengulangan",
+              style: TextStyle(fontWeight: FontWeight.bold)),
           trailing: Switch(
             value: isEnabled,
             activeColor: primaryColor,
@@ -288,14 +308,16 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isSelected ? primaryColor : const Color(0xFFF5F7FA),
+                      color:
+                          isSelected ? primaryColor : const Color(0xFFF5F7FA),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       opt['label']!,
                       style: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                         fontSize: 13,
                       ),
                     ),
@@ -308,7 +330,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
     );
   }
 
-  Widget _buildReminderSettingSection(bool isEnabled, TimeOfDay? time, Function(bool, TimeOfDay?) onChanged) {
+  Widget _buildReminderSettingSection(
+      bool isEnabled, TimeOfDay? time, Function(bool, TimeOfDay?) onChanged) {
     final primaryColor = Theme.of(context).primaryColor;
 
     return ListTile(
@@ -319,11 +342,14 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
           color: Colors.red.withOpacity(0.08),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Icon(Icons.notifications_active_outlined, color: Colors.red),
+        child:
+            const Icon(Icons.notifications_active_outlined, color: Colors.red),
       ),
-      title: const Text("Pengingat", style: TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: (isEnabled && time != null) 
-          ? Text("Pukul ${_formatTime(time)}", style: TextStyle(color: primaryColor, fontSize: 12))
+      title: const Text("Pengingat",
+          style: TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: (isEnabled && time != null)
+          ? Text("Pukul ${_formatTime(time)}",
+              style: TextStyle(color: primaryColor, fontSize: 12))
           : null,
       trailing: Switch(
         value: isEnabled,
@@ -409,7 +435,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                       color: Colors.red.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.notifications_active_outlined, size: 22, color: Colors.red),
+                    child: const Icon(Icons.notifications_active_outlined,
+                        size: 22, color: Colors.red),
                   ),
 
                 const Spacer(),
@@ -421,12 +448,16 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                     width: 54,
                     height: 54,
                     decoration: BoxDecoration(
-                      color: hasText ? Theme.of(context).primaryColor : Colors.grey.shade400,
+                      color: hasText
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey.shade400,
                       shape: BoxShape.circle,
                       boxShadow: hasText
                           ? [
                               BoxShadow(
-                                color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                color: Theme.of(context)
+                                    .primaryColor
+                                    .withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               )
@@ -492,8 +523,7 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 22, color: primaryColor),
+            Icon(Icons.calendar_today_outlined, size: 22, color: primaryColor),
             if (_selectedDate != null)
               Positioned(
                 bottom: 0,

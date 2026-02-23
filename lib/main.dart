@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'services/notification_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Notification Service
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.requestPermissions();
+  
+  // Refresh notifications (to handle reboot or missed schedules)
+  await notificationService.refreshNotifications();
+
+  await initializeDateFormatting(
+      'id_ID', null); // Inisialisasi untuk locale Indonesia
   runApp(const MyApp());
 }
 
@@ -17,13 +31,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF34729C),
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF34729C),
-          brightness: Brightness.dark,
         ),
       ),
       themeMode: ThemeMode.system,
